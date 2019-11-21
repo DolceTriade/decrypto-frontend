@@ -257,7 +257,7 @@ class Game extends React.Component {
       } break;
       case 'round': {
         let rounds = this.state.rounds.slice(0);
-        rounds.push(d);
+        rounds[d['number']] = d;
         this.setState({ rounds: rounds, message: 'Waiting for clues...' });
       } break;
       case 'order': {
@@ -338,6 +338,7 @@ class Game extends React.Component {
       this.error('Some clues empty!');
       return;
     }
+    this.setState({ 'clues': [] });
     this.state.s.send(JSON.stringify({ 
       'command': 'clues', 
       'clues': clues, 
@@ -397,7 +398,7 @@ class Game extends React.Component {
       this.state.words.forEach(function (word, idx) {
         words.push(
           <Grid item key={word}>
-            <Badge badgeContent={idx + 1} color="secondary" lassName={classes.padding}>
+            <Badge badgeContent={idx + 1} color="secondary">
             <Paper className={classes.card}>
               <Typography component="h1" variant="h3" align="center" color="textPrimary" gutterBottom>
                 {word}
