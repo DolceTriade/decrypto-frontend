@@ -128,6 +128,7 @@ function Round(props) {
   let order = null;
   let clues = [];
   let actions = [];
+  var val = [];
   console.log(props);
   if (props.round['clue_giver'] === props.me && !('guesses' in props.round)) {
     if ('clues' in props.round) {
@@ -158,13 +159,13 @@ function Round(props) {
             type='number'
             label={props.round['clues'][i]}
             className={classes.clueField}
-            value=''
             margin='normal'
+            value={val[i]}
             onChange={props.setGuesses} />
         </Grid>);
     }
     actions.push(<Button key="submit" variant="contained" color="primary" onClick={props.submitGuesses}>Submit Guesses</Button>);
-  } else if ('spy_clues' in props.round && !('spy_order' in props.round)) {
+  } else if ('spy_clues' in props.round && !('spy_order' in props.round) && 'clues' in props.round) {
     for (var i = 0; i < 3; ++i) {
       clues.push(
         <Grid item key={i}>
@@ -173,7 +174,7 @@ function Round(props) {
             label={props.round['spy_clues'][i]}
             className={classes.clueField}
             margin='normal'
-            value=''
+            value={val[i]}
             onChange={props.setSpyGuesses} />
         </Grid>);
     }
