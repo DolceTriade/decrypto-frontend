@@ -10,6 +10,12 @@ import { withSnackbar } from 'notistack';
 import AppBar from '@material-ui/core/AppBar';
 import CssBaseline from '@material-ui/core/CssBaseline';
 import Toolbar from '@material-ui/core/Toolbar';
+import Dialog from '@material-ui/core/Dialog';
+import DialogContent from '@material-ui/core/DialogContent';
+import DialogActions from '@material-ui/core/DialogActions';
+import CircularProgress from '@material-ui/core/CircularProgress';
+import Grid from '@material-ui/core/Grid';
+
 
 const styles = theme => ({
   icon: {
@@ -38,8 +44,12 @@ const styles = theme => ({
 class Lobby extends React.Component {
   constructor(props) {
     super(props)
-    this.state = { s: null }
+    this.state = { 
+      s: null,
+      connected: false,
+    };
   }
+
   createSocket(props) {
     console.log('CREATING SOCKET')
     let s = new WebSocket('ws://' + document.domain + ':8080' + '/lobby_ws')
@@ -80,8 +90,13 @@ class Lobby extends React.Component {
           break
       }
     }
+
+    s.onopen = _ => this.setState({ connected: true });
+    s.onclose = _ => this.setState({ connected: false });
+
     return s
   }
+
   join_or_create() {
     let name = document.getElementById('name').value
     let room = document.getElementById('room').value
@@ -99,6 +114,7 @@ class Lobby extends React.Component {
       JSON.stringify({ command: 'join_or_create_game', name: name, room: room })
     )
   }
+
   componentDidMount() {
     console.log("LOBBY MOUNT");
     console.log(this.state);
@@ -106,6 +122,7 @@ class Lobby extends React.Component {
       this.setState({ s: this.createSocket(this.props) })
     }
   }
+
   componentWillUnmount() {
     console.log("LOBBY UNMOUNT");
     if (this.state.s === null) {
@@ -113,6 +130,7 @@ class Lobby extends React.Component {
       this.setState({ s: null })
     }
   }
+
   render() {
     const classes = this.props.classes
 
@@ -126,6 +144,17 @@ class Lobby extends React.Component {
           </Typography>
           </Toolbar>
         </AppBar>
+        <Dialog open={!this.state.connected}>
+          <DialogContent>
+            <Grid container justify="center"><CircularProgress justify="center" disableShrink /></Grid>
+            <Typography component="h2" align="center">Waiting for WebSocket connection...</Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={_ => window.location.reload(false)} color="primary">
+              Refresh
+          </Button>
+          </DialogActions>
+        </Dialog>
         {/* Hero unit */}
         <div className={classes.heroContent}>
           <Container maxWidth='sm'>
