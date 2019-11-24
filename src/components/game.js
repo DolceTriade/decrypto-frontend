@@ -1,13 +1,12 @@
 import React from 'react';
 import Typography from '@material-ui/core/Typography';
-import { withStyles } from '@material-ui/core/styles';
+import { makeStyles, withStyles } from '@material-ui/core/styles';
 import Container from '@material-ui/core/Container';
 import Card from '@material-ui/core/Card';
 import CardHeader from '@material-ui/core/CardHeader';
-import CardMedia from '@material-ui/core/CardMedia';
 import CardContent from '@material-ui/core/CardContent';
 import CardActions from '@material-ui/core/CardActions';
-import Collapse from '@material-ui/core/Collapse';
+import Divider from '@material-ui/core/Divider';
 import Paper from '@material-ui/core/Paper';
 import Button from '@material-ui/core/Button';
 import Grid from '@material-ui/core/Grid';
@@ -19,8 +18,10 @@ import CssBaseline from '@material-ui/core/CssBaseline';
 import Toolbar from '@material-ui/core/Toolbar';
 import MenuIcon from '@material-ui/icons/Menu';
 import TextField from '@material-ui/core/TextField'
-import { makeStyles } from '@material-ui/styles';
-import { Box, CircularProgress } from '@material-ui/core';
+import CircularProgress from '@material-ui/core/CircularProgress';
+import Dialog from '@material-ui/core/Dialog';
+import DialogContent from '@material-ui/core/DialogContent';
+import DialogActions from '@material-ui/core/DialogActions';
 
 const styles = theme => ({
   icon: {
@@ -117,7 +118,7 @@ function Order(props) {
   });
   return (
     <Grid container spacing={1} justify="center">
-    {nums}
+      {nums}
     </Grid>
   );
 }
@@ -127,24 +128,57 @@ function Round(props) {
   let order = null;
   let clues = [];
   let actions = [];
-  if (props.round['clue_giver'] == props.me) {
-    for (var i = 0; i < 3; ++i) {
-      clues.push(
-        <Grid item key={i}>
-          <TextField id={i.toString()}
-                     number={i}
-                     label={'Clue #' + (i + 1)} 
-                     className={classes.clueField} 
-                     margin='normal' 
-                     onChange={props.setClues} />
-        </Grid>);
+  console.log(props);
+  if (props.round['clue_giver'] === props.me && !('guesses' in props.round)) {
+    if ('clues' in props.round) {
+      clues = <Grid container justify="center"><CircularProgress justify="center" disableShrink /></Grid>;
+    } else {
+      for (var i = 0; i < 3; ++i) {
+        clues.push(
+          <Grid item key={i}>
+            <TextField id={i.toString()}
+              label={'Clue #' + (i + 1)}
+              className={classes.clueField}
+              margin='normal'
+              onChange={props.setClues} />
+          </Grid>);
+      }
     }
     if ('order' in props.round) {
       order = <Order order={props.round['order']} />;
     }
-    actions.push(<Button key="submit" variant="contained" color="primary" onClick={props.submitClues}>Submit Clues</Button>)
-    
-  } else if (!('clues' in props.round)) {
+    if (!('clues' in props.round)) {
+      actions.push(<Button key="submit" variant="contained" color="primary" onClick={props.submitClues}>Submit Clues</Button>);
+    }
+  } else if ('clues' in props.round && !('guesses' in props.round)) {
+    for (var i = 0; i < 3; ++i) {
+      clues.push(
+        <Grid item key={i}>
+          <TextField id={i.toString()}
+            type='number'
+            label={props.round['clues'][i]}
+            className={classes.clueField}
+            value=''
+            margin='normal'
+            onChange={props.setGuesses} />
+        </Grid>);
+    }
+    actions.push(<Button key="submit" variant="contained" color="primary" onClick={props.submitGuesses}>Submit Guesses</Button>);
+  } else if ('spy_clues' in props.round && !('spy_order' in props.round)) {
+    for (var i = 0; i < 3; ++i) {
+      clues.push(
+        <Grid item key={i}>
+          <TextField id={i.toString()}
+            type='number'
+            label={props.round['spy_clues'][i]}
+            className={classes.clueField}
+            margin='normal'
+            value=''
+            onChange={props.setSpyGuesses} />
+        </Grid>);
+    }
+    actions.push(<Button key="submit" variant="contained" color="primary" onClick={props.submitSpyGuesses}>Submit Spy Guesses</Button>);
+  } else {
     clues = <Grid container justify="center"><CircularProgress justify="center" disableShrink /></Grid>;
   }
   return (
@@ -172,11 +206,13 @@ class Game extends React.Component {
       host: '',
       state: 'setup',
       s: null,
+      connected: false,
       message: 'Select a team to join!',
       words: [],
       rounds: [],
       drawer: false,
       clues: [],
+      guesses: [],
     };
   }
 
@@ -257,12 +293,24 @@ class Game extends React.Component {
       } break;
       case 'round': {
         let rounds = this.state.rounds.slice(0);
-        rounds[d['number']] = d;
-        this.setState({ rounds: rounds, message: 'Waiting for clues...' });
+        rounds[d['number']] = { ...rounds[d['number']], ...d };
+        if ('clues' in rounds[d['number']] && 'guesses' in rounds[d['number']]) {
+          this.setState({ rounds: rounds, message: 'Guess the enemies order...' });
+        } else if ('clues' in rounds[d['number']]) {
+          this.setState({ rounds: rounds, message: 'Match the clues with the word...' });
+        } else {
+          this.setState({ rounds: rounds, message: 'Waiting for clues...' });
+        }
       } break;
       case 'order': {
+        console.log(this.state.rounds);
+        console.log(d);
         let rounds = this.state.rounds.slice(0);
+        if (!rounds[d['number']]) {
+          rounds[d['number']] = {};
+        }
         rounds[d['number']]['order'] = d['order'];
+        if ('order' in rounds[d['number']]) break;
         this.setState({ rounds: rounds, message: 'Please give clues that match the order' });
       } break;
       default: {
@@ -281,6 +329,9 @@ class Game extends React.Component {
     }
 
     s.onmessage = msg => this.onMessage(msg);
+
+    s.onopen = _ => this.setState({ connected: true });
+    s.onclose = _ => this.setState({ connected: false });
     return s;
   }
 
@@ -299,6 +350,14 @@ class Game extends React.Component {
     }
   }
 
+  send(msg) {
+    if (!this.state.s || this.state.s.readyState !== this.state.s.OPEN) {
+      this.error('Websocket not connected! Try refreshing.');
+      return;
+    }
+    this.state.s.send(JSON.stringify(msg));
+  }
+
   error(msg) {
     this.props.enqueueSnackbar(msg, {
       variant: 'error',
@@ -306,43 +365,51 @@ class Game extends React.Component {
   }
 
   join_a() {
-    this.state.s.send(JSON.stringify({ 'command': 'join_a' }));
+    this.send({ 'command': 'join_a' });
   }
 
   join_b() {
-    this.state.s.send(JSON.stringify({ 'command': 'join_b' }));
+    this.send({ 'command': 'join_b' });
   }
 
   leave_team() {
-    this.state.s.send(JSON.stringify({ 'command': 'leave_team' }));
+    this.send({ 'command': 'leave_team' });
   }
 
   start_game() {
-    this.state.s.send(JSON.stringify({ 'command': 'start_game' }));
+    this.send({ 'command': 'start_game' });
   }
 
-  set_clues(e) {
-    let clues = this.state.clues;
-    clues[parseInt(e.target.id)] = e.target.value;
-    this.setState({ clues: clues });
+  set_field(field, e) {
+    let obj = this.state[field];
+    let state = {};
+    if (e.target.type == 'number') {
+      obj[parseInt(e.target.id)] = parseInt(e.target.value);
+    } else {
+      obj[parseInt(e.target.id)] = e.target.value;
+    }
+    state[field] = obj;
+    this.setState(state);
   }
 
-  submit_clues() {
-    let clues = this.state.clues;
-    console.log(clues);
-    if (clues.length != 3) {
-      this.error('Only ' + clues.length + ' set!');
+  submit_field(field, e) {
+    let obj = this.state[field];
+    if (obj.length != 3) {
+      this.error('Only ' + obj.length + ' set!');
       return;
     }
-    if (!clues.reduce((c, v) => c && v, true)) {
-      this.error('Some clues empty!');
+    if (!obj.reduce((c, v) => c && v, true)) {
+      this.error('Some ' + field + ' empty!');
       return;
     }
-    this.setState({ 'clues': [] });
-    this.state.s.send(JSON.stringify({ 
-      'command': 'clues', 
-      'clues': clues, 
-      'number': this.state.rounds.length - 1 }));
+    let state = {};
+    state[field] = [];
+    this.setState(state);
+    this.send({
+      'command': field,
+      [field]: obj,
+      'number': this.state.rounds.length - 1
+    });
   }
 
   getClueGiver() {
@@ -351,10 +418,10 @@ class Game extends React.Component {
     return this.state.rounds[this.state.rounds.length - 1]['clue_giver'];
   }
 
-  getEnemyClueGiver() {
+  getSpyClueGiver() {
     if (this.state.state !== 'words') return null;
     if (this.state.rounds.length == 0) return null;
-    return this.state.rounds[this.state.rounds.length - 1]['enemy_clue_giver'];
+    return this.state.rounds[this.state.rounds.length - 1]['spy_clue_giver'];
   }
 
   toggleDrawer() {
@@ -371,16 +438,19 @@ class Game extends React.Component {
     let players = this.state.players;
     let me = this.state.me;
     let clue_giver = this.getClueGiver();
-    let enemy_clue_giver = this.getEnemyClueGiver();
-    this.state.team_a.forEach(function (player) {
-      let show_badge = player == clue_giver || player == enemy_clue_giver ? "CG" : 0;
-      let color = me === player ? "textPrimary" : "textSecondary";
-      team_a_jsx.push(<Grid xs item key={player}><Badge badgeContent={show_badge} color="secondary" className={classes.padding}><Typography component="h5" align="center" color={color} key={player}>{player}</Typography></Badge></Grid>);
-    });
-    this.state.team_b.forEach(function (player) {
-      let show_badge = player == clue_giver || player == enemy_clue_giver ? "CG" : 0;
-      let color = me === player ? "textPrimary" : "textSecondary";
-      team_b_jsx.push(<Grid xs item key={player}><Badge badgeContent={show_badge} color="secondary" className={classes.padding}><Typography component="h5" align="center" color={color} key={player}>{player}</Typography></Badge></Grid>);
+    let spy_clue_giver = this.getSpyClueGiver();
+    [[this.state.team_a, team_a_jsx], [this.state.team_b, team_b_jsx]].forEach(function (team) {
+      team[0].forEach(function (player) {
+        let show_badge = player == clue_giver || player == spy_clue_giver ? "CG" : 0;
+        let color = me === player ? "textPrimary" : "textSecondary";
+        team[1].push(
+          <Grid xs item key={player}>
+            <Badge badgeContent={show_badge} color="secondary" className={classes.padding}>
+              <Typography component="h5" align="center" color={color} key={player}>{player}</Typography>
+            </Badge>
+            <Divider />
+          </Grid>);
+      });
     });
 
     let buttons = [];
@@ -399,11 +469,11 @@ class Game extends React.Component {
         words.push(
           <Grid item key={word}>
             <Badge badgeContent={idx + 1} color="secondary">
-            <Paper className={classes.card}>
-              <Typography component="h1" variant="h3" align="center" color="textPrimary" gutterBottom>
-                {word}
-              </Typography>
-            </Paper>
+              <Paper className={classes.card}>
+                <Typography component="h1" variant="h3" align="center" color="textPrimary" gutterBottom>
+                  {word}
+                </Typography>
+              </Paper>
             </Badge>
           </Grid>);
       });
@@ -413,7 +483,12 @@ class Game extends React.Component {
     let rounds = [];
     let self = this;
     this.state.rounds.forEach(function (round) {
-      rounds.push(<Round key={round['number']} round={round} me={me} setClues={self.set_clues.bind(self)} submitClues={self.submit_clues.bind(self)} />);
+      rounds.push(<Round key={round['number']}
+        round={round} me={me}
+        setClues={self.set_field.bind(self, 'clues')}
+        submitClues={self.submit_field.bind(self, 'clues')}
+        setGuesses={self.set_field.bind(self, 'guesses')}
+        submitGuesses={self.submit_field.bind(self, 'guesses')} />);
     });
 
     return (
@@ -439,6 +514,17 @@ class Game extends React.Component {
             </Paper>
           </Container>
         </Drawer>
+        <Dialog open={!this.state.connected}>
+          <DialogContent>
+            <Grid container justify="center"><CircularProgress justify="center" disableShrink /></Grid>
+            <Typography component="h2" align="center">Waiting for WebSocket connection...</Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={_ => window.location.reload(false)} color="primary">
+              Refresh
+          </Button>
+          </DialogActions>
+        </Dialog>
         <Container className={classes.heroContent}>
           <Container maxWidth="sm">
             <Typography component="h1" variant="h4" align="center" color="textPrimary" gutterBottom>
