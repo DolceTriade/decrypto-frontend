@@ -52,7 +52,7 @@ class Lobby extends React.Component {
 
   createSocket(props) {
     console.log('CREATING SOCKET')
-    let s = new WebSocket('ws://' + document.domain + ':8080' + '/lobby_ws')
+    let s = new WebSocket('ws://' + document.domain + ':' + window.location.port + '/lobby_ws');
     s.onmessage = function (msg) {
       console.log('Got server response:')
       console.log(msg)

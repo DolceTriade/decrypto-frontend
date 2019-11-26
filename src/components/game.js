@@ -369,7 +369,7 @@ class Game extends React.Component {
 
   createSocket(props) {
     console.log("CREATING SOCKET");
-    let s = new WebSocket('ws://' + document.domain + ':8080' + window.location.pathname + '/ws')
+    let s = new WebSocket('ws://' + document.domain + ':' + window.location.port + window.location.pathname + '/ws');
 
     s.onerror = function (e) {
       console.log("ERROR:");
