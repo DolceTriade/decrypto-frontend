@@ -22,6 +22,8 @@ import CircularProgress from '@material-ui/core/CircularProgress';
 import Dialog from '@material-ui/core/Dialog';
 import DialogContent from '@material-ui/core/DialogContent';
 import DialogActions from '@material-ui/core/DialogActions';
+import CancelIcon from '@material-ui/icons/Cancel';
+import Collapse from '@material-ui/core/Collapse';
 
 const styles = theme => ({
   icon: {
@@ -49,6 +51,7 @@ const styles = theme => ({
   },
   padding: {
     padding: theme.spacing(0, 2),
+    marginBottom: theme.spacing(1),
     fontSize: 12,
   },
   teamName: {
@@ -66,6 +69,8 @@ const styles = theme => ({
     padding: theme.spacing(1),
   }
 });
+
+let randomKey = _ => Math.random().toString(36);
 
 function TeamJoinButtons(props) {
   return (
@@ -113,7 +118,7 @@ function Order(props) {
   let nums = [];
   props.order.forEach(num => {
     nums.push(
-      <Grid item key={num}><Paper p={3}><Typography variant="h3" align="center">{num}</Typography></Paper></Grid>
+      <Grid item key={num}><Paper p={3}><Typography variant="h5" align="center">{num}</Typography></Paper></Grid>
     );
   });
   return (
@@ -128,16 +133,18 @@ function Round(props) {
   let order = null;
   let clues = [];
   let actions = [];
-  var val = [];
   console.log(props);
   if (props.round['clue_giver'] === props.me && !('guesses' in props.round)) {
     if ('clues' in props.round) {
       clues = <Grid container justify="center"><CircularProgress justify="center" disableShrink /></Grid>;
     } else {
       for (var i = 0; i < 3; ++i) {
+        let key = 'clues' + i;
         clues.push(
-          <Grid item key={i}>
-            <TextField id={i.toString()}
+          <Grid item key={key}>
+            <TextField id={key}
+              name={i.toString()}
+              autoComplete='off'
               label={'Clue #' + (i + 1)}
               className={classes.clueField}
               margin='normal'
@@ -149,36 +156,65 @@ function Round(props) {
       order = <Order order={props.round['order']} />;
     }
     if (!('clues' in props.round)) {
-      actions.push(<Button key="submit" variant="contained" color="primary" onClick={props.submitClues}>Submit Clues</Button>);
+      actions.push(<Button key="submitc" variant="contained" color="primary" onClick={props.submitClues}>Submit Clues</Button>);
     }
   } else if ('clues' in props.round && !('guesses' in props.round)) {
     for (var i = 0; i < 3; ++i) {
+      let key = 'guesses' + i;
       clues.push(
-        <Grid item key={i}>
-          <TextField id={i.toString()}
+        <Grid item key={key}>
+          <TextField id={key}
+            name={i.toString()}
+            autoComplete='off'
             type='number'
             label={props.round['clues'][i]}
             className={classes.clueField}
             margin='normal'
-            value={val[i]}
             onChange={props.setGuesses} />
         </Grid>);
     }
-    actions.push(<Button key="submit" variant="contained" color="primary" onClick={props.submitGuesses}>Submit Guesses</Button>);
-  } else if ('spy_clues' in props.round && !('spy_order' in props.round) && 'clues' in props.round) {
+    actions.push(<Button key="submitg" variant="contained" color="primary" onClick={props.submitGuesses}>Submit Guesses</Button>);
+  } else if ('spy_clues' in props.round && !('team_spy_guesses' in props.round) && 'clues' in props.round) {
     for (var i = 0; i < 3; ++i) {
+      let key = 'spyguesses' + i;
       clues.push(
-        <Grid item key={i}>
-          <TextField id={i.toString()}
+        <Grid item key={key}>
+          <TextField id={key}
+            name={i.toString()}
+            autoComplete='off'
             type='number'
             label={props.round['spy_clues'][i]}
             className={classes.clueField}
             margin='normal'
-            value={val[i]}
             onChange={props.setSpyGuesses} />
         </Grid>);
     }
-    actions.push(<Button key="submit" variant="contained" color="primary" onClick={props.submitSpyGuesses}>Submit Spy Guesses</Button>);
+    actions.push(<Button key="submitsg" variant="contained" color="primary" onClick={props.submitSpyGuesses}>Submit Spy Guesses</Button>);
+  } else if ('spy_order' in props.round && 'order' in props.round) {
+    order = (
+      <Container>
+        <Typography>Your order:</Typography>
+        <Order order={props.round['order']} />
+
+        <Typography>Your Guess:</Typography>
+        <Order order={props.round['guesses']} />
+
+        <Typography>Spies Order:</Typography>
+        <Order order={props.round['spy_order']} />
+
+        <Typography>Your Spy Guess:</Typography>
+        <Order order={props.round['team_spy_guesses']} />
+      </Container>
+    );
+    clues.push(<Grid item key={randomKey()}><Typography>Your Clues:</Typography></Grid>);
+    props.round.clues.forEach(function (clue, idx) {
+      clues.push(<Grid item key={randomKey()}><Typography>{idx + 1}. {clue}</Typography></Grid>);
+    });
+    clues.push(<Grid item key={randomKey()}><Typography>Spy Clues:</Typography></Grid>);
+    props.round.spy_clues.forEach(function (clue, idx) {
+      clues.push(<Grid item key={randomKey()}><Typography>{idx + 1}. {clue}</Typography></Grid>)
+    });
+    clues = <Grid container direction="column" justify="center">{clues}</Grid>
   } else {
     clues = <Grid container justify="center"><CircularProgress justify="center" disableShrink /></Grid>;
   }
@@ -214,6 +250,8 @@ class Game extends React.Component {
       drawer: false,
       clues: [],
       guesses: [],
+      spy_guesses: [],
+      score: null,
     };
   }
 
@@ -296,11 +334,11 @@ class Game extends React.Component {
         let rounds = this.state.rounds.slice(0);
         rounds[d['number']] = { ...rounds[d['number']], ...d };
         if ('clues' in rounds[d['number']] && 'guesses' in rounds[d['number']]) {
-          this.setState({ rounds: rounds, message: 'Guess the enemies order...' });
+          this.setState({ rounds: rounds, message: 'Guess the enemies order...', spy_guesses: [] });
         } else if ('clues' in rounds[d['number']]) {
-          this.setState({ rounds: rounds, message: 'Match the clues with the word...' });
+          this.setState({ rounds: rounds, message: 'Match the clues with the word...', guesses: [] });
         } else {
-          this.setState({ rounds: rounds, message: 'Waiting for clues...' });
+          this.setState({ rounds: rounds, message: 'Waiting for clues...', clues: [] });
         }
       } break;
       case 'order': {
@@ -310,9 +348,18 @@ class Game extends React.Component {
         if (!rounds[d['number']]) {
           rounds[d['number']] = {};
         }
-        rounds[d['number']]['order'] = d['order'];
         if ('order' in rounds[d['number']]) break;
+        rounds[d['number']]['order'] = d['order'];
         this.setState({ rounds: rounds, message: 'Please give clues that match the order' });
+      } break;
+      case 'score': {
+        if ('winner' in d) {
+          this.setState({ score: d, message: d['winner'] + ' wins the game! The words are: Team A: ' + d.words.team_a + ' Team B:' + d.words.team_b });
+        } else if ('tie' in d) {
+          this.setState({ score: d, message: 'Game is a tie! The words are: Team A: ' + d.words.team_a + ' Team B:' + d.words.team_b });
+        } else {
+          this.setState({ score: d });
+        }
       } break;
       default: {
         console.log('Unhandled: ' + d);
@@ -360,8 +407,14 @@ class Game extends React.Component {
   }
 
   error(msg) {
+    let action = key => (
+      <Button onClick={() => { this.props.closeSnackbar(key) }}>
+        Dismiss <CancelIcon />
+      </Button>
+    );
     this.props.enqueueSnackbar(msg, {
       variant: 'error',
+      action
     });
   }
 
@@ -385,9 +438,9 @@ class Game extends React.Component {
     let obj = this.state[field];
     let state = {};
     if (e.target.type == 'number') {
-      obj[parseInt(e.target.id)] = parseInt(e.target.value);
+      obj[parseInt(e.target.name)] = parseInt(e.target.value);
     } else {
-      obj[parseInt(e.target.id)] = e.target.value;
+      obj[parseInt(e.target.name)] = e.target.value;
     }
     state[field] = obj;
     this.setState(state);
@@ -409,7 +462,7 @@ class Game extends React.Component {
     this.send({
       'command': field,
       [field]: obj,
-      'number': this.state.rounds.length - 1
+      'number': this.state.rounds.length - 1,
     });
   }
 
@@ -436,7 +489,6 @@ class Game extends React.Component {
     let team_a_jsx = [];
     let team_b_jsx = [];
     let host = this.state.host;
-    let players = this.state.players;
     let me = this.state.me;
     let clue_giver = this.getClueGiver();
     let spy_clue_giver = this.getSpyClueGiver();
@@ -480,17 +532,42 @@ class Game extends React.Component {
       });
     }
 
-    let order = this.state.order;
     let rounds = [];
     let self = this;
     this.state.rounds.forEach(function (round) {
-      rounds.push(<Round key={round['number']}
+      rounds.push(<Grid item key={round['number']}><Round
         round={round} me={me}
         setClues={self.set_field.bind(self, 'clues')}
         submitClues={self.submit_field.bind(self, 'clues')}
         setGuesses={self.set_field.bind(self, 'guesses')}
-        submitGuesses={self.submit_field.bind(self, 'guesses')} />);
+        submitGuesses={self.submit_field.bind(self, 'guesses')}
+        setSpyGuesses={self.set_field.bind(self, 'spy_guesses')}
+        submitSpyGuesses={self.submit_field.bind(self, 'spy_guesses')} /></Grid>);
     });
+
+    let score = [];
+    if (this.state.score) {
+      score = (
+        <Container>
+          <Grid container justify="center" spacing={1}>
+            <Grid item>
+              <Paper className={classes.padding}>
+                <Typography variant="h6">Team A</Typography>
+                <Typography>Intercepts: {this.state.score.team_a.intercepts}</Typography>
+                <Typography>Miscommunications: {this.state.score.team_a.miscommunications}</Typography>
+              </Paper>
+            </Grid>
+            <Grid item>
+              <Paper className={classes.padding}>
+                <Typography variant="h6">Team B</Typography>
+                <Typography>Intercepts: {this.state.score.team_b.intercepts}</Typography>
+                <Typography>Miscommunications: {this.state.score.team_b.miscommunications}</Typography>
+              </Paper>
+            </Grid>
+          </Grid>
+        </Container>
+      );
+    }
 
     return (
       <React.Fragment>
@@ -527,6 +604,9 @@ class Game extends React.Component {
           </DialogActions>
         </Dialog>
         <Container className={classes.heroContent}>
+          <Container>
+            {score}
+          </Container>
           <Container maxWidth="sm">
             <Typography component="h1" variant="h4" align="center" color="textPrimary" gutterBottom>
               {this.state.message}
@@ -542,7 +622,9 @@ class Game extends React.Component {
           </Container>
         </Container>
         <Container>
-          {rounds}
+          <Grid container spacing={2} justify="center">
+            {rounds}
+          </Grid>
         </Container>
       </React.Fragment>
     );
