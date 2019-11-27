@@ -2,10 +2,6 @@ import React from 'react';
 import Typography from '@material-ui/core/Typography';
 import { makeStyles, withStyles } from '@material-ui/core/styles';
 import Container from '@material-ui/core/Container';
-import Card from '@material-ui/core/Card';
-import CardHeader from '@material-ui/core/CardHeader';
-import CardContent from '@material-ui/core/CardContent';
-import CardActions from '@material-ui/core/CardActions';
 import Divider from '@material-ui/core/Divider';
 import Paper from '@material-ui/core/Paper';
 import Button from '@material-ui/core/Button';
@@ -27,6 +23,8 @@ import ExpansionPanel from '@material-ui/core/ExpansionPanel';
 import ExpansionPanelDetails from '@material-ui/core/ExpansionPanelDetails';
 import ExpansionPanelSummary from '@material-ui/core/ExpansionPanelSummary';
 import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
+import Tabs from '@material-ui/core/Tabs';
+import Tab from '@material-ui/core/Tab';
 
 const styles = theme => ({
   icon: {
@@ -70,6 +68,19 @@ const styles = theme => ({
   },
   card: {
     padding: theme.spacing(1),
+  },
+  bottomBar: {
+    overflow: 'none',
+    left: 0,
+    bottom: 0,
+    height: theme.spacing(10),
+  },
+  chatBox: {
+    width: '100%',
+    overflow: 'auto',
+    left: 0,
+    bottom: 0,
+    height: theme.spacing(10),
   }
 });
 
@@ -117,7 +128,6 @@ function GameStartButton(props) {
 }
 
 function Order(props) {
-  let classes = makeStyles(styles);
   let nums = [];
   props.order.forEach(num => {
     nums.push(
@@ -136,7 +146,6 @@ function Round(props) {
   let order = null;
   let clues = [];
   let actions = [];
-  console.log(props);
   if (props.round['clue_giver'] === props.me && !('guesses' in props.round)) {
     if ('clues' in props.round) {
       clues = <Grid container justify="center"><CircularProgress justify="center" disableShrink /></Grid>;
@@ -162,7 +171,7 @@ function Round(props) {
       actions.push(<Button key="submitc" variant="contained" color="primary" onClick={props.submitClues}>Submit Clues</Button>);
     }
   } else if ('clues' in props.round && !('guesses' in props.round)) {
-    for (var i = 0; i < 3; ++i) {
+    for (i = 0; i < 3; ++i) {
       let key = 'guesses' + i;
       clues.push(
         <Grid item key={key}>
@@ -178,7 +187,7 @@ function Round(props) {
     }
     actions.push(<Button key="submitg" variant="contained" color="primary" onClick={props.submitGuesses}>Submit Guesses</Button>);
   } else if ('spy_clues' in props.round && !('team_spy_guesses' in props.round) && 'clues' in props.round) {
-    for (var i = 0; i < 3; ++i) {
+    for (i = 0; i < 3; ++i) {
       let key = 'spyguesses' + i;
       clues.push(
         <Grid item key={key}>
@@ -237,6 +246,42 @@ function Round(props) {
   )
 }
 
+function Chat(props) {
+  let msgs = [];
+  props.chat.forEach(function (msg, idx) {
+    msgs.push(
+      <Container key={msg.date + msg.date.getMilliseconds() + msg.name + msg.chat}>
+        <Typography display='inline'>[{msg.date.getHours()}:{msg.date.getMinutes()}]</Typography>
+        <Typography display='inline'> <b>{msg.name}</b></Typography>
+        <Typography display='inline'>: {msg.message}</Typography>
+      </Container>)
+  });
+  let onEnterPressed = event => {
+    event.preventDefault();
+    if (event.key === 'Enter') {
+      props.sendchat(event.target.value);
+      event.target.value = null;
+    }
+  }
+
+  return (
+    <React.Fragment>
+      <Container id={props.id} className={props.className}>
+        {msgs}
+      </Container>
+      <TextField name='chat' fullWidth onKeyUp={onEnterPressed} autoComplete='off' label='Press enter to send chat...' margin='normal' />
+    </React.Fragment>
+  );
+}
+
+function TabPanel(props) {
+  return (
+    <Container hidden={props.value !== props.index}>
+      {props.children}
+    </Container>
+  );
+}
+
 class Game extends React.Component {
   constructor(props) {
     super(props);
@@ -258,6 +303,9 @@ class Game extends React.Component {
       spy_guesses: [],
       score: null,
       expanded: false,
+      tab: 0,
+      all_chat: [],
+      team_chat: [],
     };
   }
 
@@ -286,7 +334,7 @@ class Game extends React.Component {
         let new_players = new Set(this.state.players);
         new_players.add(d['player']);
         this.setState({ players: new_players });
-        if (this.state.players.size == 1) {
+        if (this.state.players.size === 1) {
           this.setState({ me: d['player'] });
         }
       } break;
@@ -297,7 +345,6 @@ class Game extends React.Component {
         // on_player_disconnected(d['player']);
       } break;
       case 'joined_team': {
-        console.log(d);
         if (this.state.me === d['name']) {
           this.setState({ message: 'Waiting for game to start...' });
         }
@@ -357,8 +404,6 @@ class Game extends React.Component {
         }
       } break;
       case 'order': {
-        console.log(this.state.rounds);
-        console.log(d);
         let rounds = this.state.rounds.slice(0);
         if (!rounds[d['number']]) {
           rounds[d['number']] = {};
@@ -376,6 +421,24 @@ class Game extends React.Component {
           this.setState({ score: d });
         }
       } break;
+      case 'team_chat': {
+        let chat = this.state.team_chat;
+        chat.push({date: new Date(), ...d});
+        this.setState({ team_chat: chat });
+        let e = document.getElementById('team_chat');
+        if (e.scrollTop >= e.scrollHeight - e.clientHeight - e.lastChild.clientHeight) {
+          e.scrollTop = e.scrollHeight;
+        }
+      } break;
+      case 'all_chat': {
+        let chat = this.state.all_chat;
+        chat.push({date: new Date(), ...d});
+        this.setState({ all_chat: chat });
+        let e = document.getElementById('all_chat');
+        if (e.scrollTop >= e.scrollHeight - e.clientHeight - e.lastChild.clientHeight) {
+          e.scrollTop = e.scrollHeight;
+        }
+      } break;
       default: {
         console.log('Unhandled: ' + d);
       } break;
@@ -384,7 +447,7 @@ class Game extends React.Component {
 
   createSocket(props) {
     let url = 'ws://' + document.domain + ':' + window.location.port + window.location.pathname + '/ws';
-    if (process.env.NODE_ENV == 'development') {
+    if (process.env.NODE_ENV === 'development') {
       url = 'ws://' + document.domain + ':8080' + window.location.pathname + '/ws';
     }
     let s = new WebSocket(url);
@@ -402,8 +465,6 @@ class Game extends React.Component {
   }
 
   componentDidMount() {
-    console.log("GAME MOUNT");
-    console.log(this.state);
     if (this.state.s === null) {
       this.setState({ s: this.createSocket(this.props) });
     }
@@ -455,7 +516,7 @@ class Game extends React.Component {
   set_field(field, e) {
     let obj = this.state[field];
     let state = {};
-    if (e.target.type == 'number') {
+    if (e.target.type === 'number') {
       obj[parseInt(e.target.name)] = parseInt(e.target.value);
     } else {
       obj[parseInt(e.target.name)] = e.target.value;
@@ -466,7 +527,7 @@ class Game extends React.Component {
 
   submit_field(field, e) {
     let obj = this.state[field];
-    if (obj.length != 3) {
+    if (obj.length !== 3) {
       this.error('Only ' + obj.length + ' set!');
       return;
     }
@@ -484,15 +545,19 @@ class Game extends React.Component {
     });
   }
 
+  send_chat(command, message) {
+    this.send({command: command, message: message});
+  }
+
   getClueGiver() {
     if (this.state.state !== 'words') return null;
-    if (this.state.rounds.length == 0) return null;
+    if (this.state.rounds.length === 0) return null;
     return this.state.rounds[this.state.rounds.length - 1]['clue_giver'];
   }
 
   getSpyClueGiver() {
     if (this.state.state !== 'words') return null;
-    if (this.state.rounds.length == 0) return null;
+    if (this.state.rounds.length === 0) return null;
     return this.state.rounds[this.state.rounds.length - 1]['spy_clue_giver'];
   }
 
@@ -507,9 +572,11 @@ class Game extends React.Component {
     };
   }
 
+  handleTabChange(event, newValue) {
+    this.setState({ tab: newValue });
+  }
+
   render() {
-    console.log('RENDER GAME');
-    console.log(this.state);
     const classes = this.props.classes;
     let team_a_jsx = [];
     let team_b_jsx = [];
@@ -519,7 +586,7 @@ class Game extends React.Component {
     let spy_clue_giver = this.getSpyClueGiver();
     [[this.state.team_a, team_a_jsx], [this.state.team_b, team_b_jsx]].forEach(function (team) {
       team[0].forEach(function (player) {
-        let show_badge = player == clue_giver || player == spy_clue_giver ? "CG" : 0;
+        let show_badge = player === clue_giver || player === spy_clue_giver ? "CG" : 0;
         let color = me === player ? "textPrimary" : "textSecondary";
         team[1].push(
           <Grid xs item key={player}>
@@ -648,6 +715,20 @@ class Game extends React.Component {
         </Container>
         <Container>
           {rounds}
+        </Container>
+        <Container className={classes.bottomBar}>
+          <AppBar position="static">
+            <Tabs value={this.state.tab} onChange={this.handleTabChange.bind(this)}>
+              <Tab label="All Chat" index={0} />
+              <Tab label="Team Chat" index={1} />
+            </Tabs>
+          </AppBar>
+          <TabPanel value={this.state.tab} index={0}>
+            <Chat id='all_chat' className={classes.chatBox} sendchat={this.send_chat.bind(this, 'all_chat')} chat={this.state.all_chat} />
+          </TabPanel>
+          <TabPanel value={this.state.tab} index={1}>
+            <Chat id='team_chat' className={classes.chatBox} sendchat={this.send_chat.bind(this, 'team_chat')} chat={this.state.team_chat} />
+          </TabPanel>
         </Container>
       </React.Fragment>
     );
