@@ -51,8 +51,11 @@ class Lobby extends React.Component {
   }
 
   createSocket(props) {
-    console.log('CREATING SOCKET')
-    let s = new WebSocket('ws://' + document.domain + ':' + window.location.port + '/lobby_ws');
+    let url = 'ws://' + document.domain + ':' + window.location.port + '/lobby_ws';
+    if (process.env.NODE_ENV == 'development') {
+      url = 'ws://' + document.domain + ':8080' + '/lobby_ws';
+    }
+    let s = new WebSocket(url);
     s.onmessage = function (msg) {
       console.log('Got server response:')
       console.log(msg)
@@ -132,7 +135,7 @@ class Lobby extends React.Component {
   }
 
   render() {
-    const classes = this.props.classes
+    const classes = this.props.classes;
 
     return (
       <React.Fragment>

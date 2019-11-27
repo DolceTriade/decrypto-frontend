@@ -23,7 +23,10 @@ import Dialog from '@material-ui/core/Dialog';
 import DialogContent from '@material-ui/core/DialogContent';
 import DialogActions from '@material-ui/core/DialogActions';
 import CancelIcon from '@material-ui/icons/Cancel';
-import Collapse from '@material-ui/core/Collapse';
+import ExpansionPanel from '@material-ui/core/ExpansionPanel';
+import ExpansionPanelDetails from '@material-ui/core/ExpansionPanelDetails';
+import ExpansionPanelSummary from '@material-ui/core/ExpansionPanelSummary';
+import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
 
 const styles = theme => ({
   icon: {
@@ -219,16 +222,18 @@ function Round(props) {
     clues = <Grid container justify="center"><CircularProgress justify="center" disableShrink /></Grid>;
   }
   return (
-    <Card>
-      <CardHeader title={"Round " + (props.round.number + 1)} />
-      <CardContent>
+    <ExpansionPanel expanded={props.expanded === props.round.number} onChange={props.handleExpansion(props.round.number)}>
+      <ExpansionPanelSummary expandIcon={<ExpandMoreIcon />}>
+        <Typography color="textPrimary" variant="h3">Round {props.round.number + 1}</Typography>
+      </ExpansionPanelSummary>
+      <ExpansionPanelDetails>
         <Grid className={classes.card} spacing={2} container>
           {order}
           {clues}
         </Grid>
-      </CardContent>
-      <CardActions>{actions}</CardActions>
-    </Card>
+      {actions}
+      </ExpansionPanelDetails>
+    </ExpansionPanel>
   )
 }
 
@@ -252,6 +257,7 @@ class Game extends React.Component {
       guesses: [],
       spy_guesses: [],
       score: null,
+      expanded: false,
     };
   }
 
@@ -334,11 +340,20 @@ class Game extends React.Component {
         let rounds = this.state.rounds.slice(0);
         rounds[d['number']] = { ...rounds[d['number']], ...d };
         if ('clues' in rounds[d['number']] && 'guesses' in rounds[d['number']]) {
-          this.setState({ rounds: rounds, message: 'Guess the enemies order...', spy_guesses: [] });
+          this.setState({ rounds: rounds,
+            message: 'Guess the enemies order...',
+            spy_guesses: [],
+            expanded: d.number });
         } else if ('clues' in rounds[d['number']]) {
-          this.setState({ rounds: rounds, message: 'Match the clues with the word...', guesses: [] });
+          this.setState({ rounds: rounds,
+            message: 'Match the clues with the word...',
+            guesses: [],
+            expanded: d.number });
         } else {
-          this.setState({ rounds: rounds, message: 'Waiting for clues...', clues: [] });
+          this.setState({ rounds: rounds,
+            message: 'Waiting for clues...',
+            clues: [],
+            expanded: d.number });
         }
       } break;
       case 'order': {
@@ -368,8 +383,11 @@ class Game extends React.Component {
   }
 
   createSocket(props) {
-    console.log("CREATING SOCKET");
-    let s = new WebSocket('ws://' + document.domain + ':' + window.location.port + window.location.pathname + '/ws');
+    let url = 'ws://' + document.domain + ':' + window.location.port + window.location.pathname + '/ws';
+    if (process.env.NODE_ENV == 'development') {
+      url = 'ws://' + document.domain + ':8080' + window.location.pathname + '/ws';
+    }
+    let s = new WebSocket(url);
 
     s.onerror = function (e) {
       console.log("ERROR:");
@@ -482,6 +500,13 @@ class Game extends React.Component {
     this.setState({ drawer: !this.state.drawer });
   }
 
+  handleExpansion(round) {
+    let self = this;
+    return (event, isExpanded) => {
+      self.setState({ expanded: isExpanded ? round : false });
+    };
+  }
+
   render() {
     console.log('RENDER GAME');
     console.log(this.state);
@@ -536,7 +561,7 @@ class Game extends React.Component {
     let self = this;
     this.state.rounds.forEach(function (round) {
       rounds.push(<Grid item key={round['number']}><Round
-        round={round} me={me}
+        round={round} me={me} expanded={self.state.expanded} handleExpansion={self.handleExpansion.bind(self)}
         setClues={self.set_field.bind(self, 'clues')}
         submitClues={self.submit_field.bind(self, 'clues')}
         setGuesses={self.set_field.bind(self, 'guesses')}
@@ -622,9 +647,7 @@ class Game extends React.Component {
           </Container>
         </Container>
         <Container>
-          <Grid container spacing={2} justify="center">
-            {rounds}
-          </Grid>
+          {rounds}
         </Container>
       </React.Fragment>
     );
