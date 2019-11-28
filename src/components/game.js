@@ -25,6 +25,11 @@ import ExpansionPanelSummary from '@material-ui/core/ExpansionPanelSummary';
 import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
 import Tabs from '@material-ui/core/Tabs';
 import Tab from '@material-ui/core/Tab';
+import Table from '@material-ui/core/Table';
+import TableBody from '@material-ui/core/TableBody';
+import TableCell from '@material-ui/core/TableCell';
+import TableHead from '@material-ui/core/TableHead';
+import TableRow from '@material-ui/core/TableRow';
 
 const styles = theme => ({
   icon: {
@@ -274,6 +279,38 @@ function Chat(props) {
   );
 }
 
+function ClueView(props) {
+  let contents = [];
+  for (var i = 0; i < props.clues.length; ++i) {
+    let inner = [];
+    for (var j = 1; j < props.clues[i].length; ++j) {
+      inner.push(
+        <TableCell key={j}>{props.clues[i][j] ? props.clues[i][j] : ''}</TableCell>
+      );
+    }
+    contents.push(
+      <TableRow key={i}>
+        {inner}
+      </TableRow>
+    )
+  }
+  return (
+    <Table>
+      <TableHead>
+        <TableRow>
+          <TableCell>Word 1</TableCell>
+          <TableCell>Word 2</TableCell>
+          <TableCell>Word 3</TableCell>
+          <TableCell>Word 4</TableCell>
+        </TableRow>
+      </TableHead>
+      <TableBody>
+        {contents}
+      </TableBody>
+    </Table>
+  );
+}
+
 function TabPanel(props) {
   return (
     <Container hidden={props.value !== props.index}>
@@ -306,6 +343,8 @@ class Game extends React.Component {
       tab: 0,
       all_chat: [],
       team_chat: [],
+      clue_view: [],
+      spy_clue_view: [],
     };
   }
 
@@ -401,6 +440,19 @@ class Game extends React.Component {
             message: 'Waiting for clues...',
             clues: [],
             expanded: d.number });
+        }
+        if ('order' in d && 'spy_order' in d) {
+          let clue_view = this.state.clue_view;
+          let spy_clue_view = this.state.spy_clue_view;
+          let array = [];
+          let spy_array = [];
+          for (var i = 0; i < d.order.length; ++i) {
+            array[d.order[i]] = d.clues[i];
+            spy_array[d.spy_order[i]] = d.spy_clues[i];
+          }
+          clue_view[d.number] = array;
+          spy_clue_view[d.number] = spy_array;
+          this.setState({ clue_view: clue_view, spy_clue_view: spy_clue_view });
         }
       } break;
       case 'order': {
@@ -721,6 +773,8 @@ class Game extends React.Component {
             <Tabs value={this.state.tab} onChange={this.handleTabChange.bind(this)}>
               <Tab label="All Chat" index={0} />
               <Tab label="Team Chat" index={1} />
+              <Tab label="Clue View" index={2} />
+              <Tab label="Spy Clue View" index={3} />
             </Tabs>
           </AppBar>
           <TabPanel value={this.state.tab} index={0}>
@@ -728,6 +782,12 @@ class Game extends React.Component {
           </TabPanel>
           <TabPanel value={this.state.tab} index={1}>
             <Chat id='team_chat' className={classes.chatBox} sendchat={this.send_chat.bind(this, 'team_chat')} chat={this.state.team_chat} />
+          </TabPanel>
+          <TabPanel value={this.state.tab} index={2}>
+            <ClueView clues={this.state.clue_view} />
+          </TabPanel>
+          <TabPanel value={this.state.tab} index={3}>
+            <ClueView clues={this.state.spy_clue_view} />
           </TabPanel>
         </Container>
       </React.Fragment>
