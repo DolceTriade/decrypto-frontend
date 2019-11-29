@@ -409,7 +409,7 @@ class Game extends React.Component {
           console.log('ERROR: joined_team: invalid team: ' + d['team']);
           return;
         }
-        this.push_chat('all_chat', makeSystemMessage(d['player'] + ' joined team ' + d['team'].toUpperCase()));
+        this.push_chat('all_chat', makeSystemMessage(d['name'] + ' joined team ' + d['team'].toUpperCase()));
       } break;
       case 'left_team': {
         if (d['team'] === 'a') {
@@ -424,7 +424,7 @@ class Game extends React.Component {
           console.log('ERROR: left_team: invalid team: ' + d['team']);
           return;
         }
-        this.push_chat('all_chat', makeSystemMessage(d['player'] + ' left team ' + d['team'].toUpperCase()));
+        this.push_chat('all_chat', makeSystemMessage(d['name'] + ' left team ' + d['team'].toUpperCase()));
       } break;
       case 'new_host': {
         this.setState({ host: d['player'] });
