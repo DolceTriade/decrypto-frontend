@@ -36,7 +36,6 @@ const styles = theme => ({
     marginRight: theme.spacing(2),
   },
   heroContent: {
-    height: 'available',
     width: 'available',
     backgroundColor: theme.palette.background.paper,
     padding: theme.spacing(8, 0, 6),
@@ -75,21 +74,22 @@ const styles = theme => ({
     padding: theme.spacing(1),
   },
   bottomBar: {
+    position: 'absolute',
     overflow: 'none',
     left: 0,
-    bottom: 0,
-    height: theme.spacing(10),
+    bottom: theme.spacing(15),
+    height: theme.spacing(15),
   },
   chatBox: {
     width: '100%',
     overflow: 'auto',
-    left: 0,
-    bottom: 0,
-    height: theme.spacing(10),
-  }
+    height: theme.spacing(15),
+  },
 });
 
 let randomKey = _ => Math.random().toString(36);
+
+let makeSystemMessage = msg => { return { system: true, name: '', message: msg }; }
 
 function TeamJoinButtons(props) {
   return (
@@ -253,13 +253,22 @@ function Round(props) {
 
 function Chat(props) {
   let msgs = [];
+  let formatTime = date => date.getHours() + ':' + date.getMinutes().toString().padStart(2, '0'); 
   props.chat.forEach(function (msg, idx) {
-    msgs.push(
-      <Container key={msg.date + msg.date.getMilliseconds() + msg.name + msg.chat}>
-        <Typography display='inline'>[{msg.date.getHours()}:{msg.date.getMinutes()}]</Typography>
-        <Typography display='inline'> <b>{msg.name}</b></Typography>
-        <Typography display='inline'>: {msg.message}</Typography>
-      </Container>)
+    if ('system' in msg) {
+      msgs.push(
+        <Container key={msg.date + msg.date.getMilliseconds() + msg.name + msg.chat}>
+          <Typography display='inline'>[{formatTime(msg.date)}]</Typography>
+          <Typography display='inline' color="textSecondary" fontStyle="italic">: {msg.message}</Typography>
+        </Container>);
+    } else {
+      msgs.push(
+        <Container key={msg.date + msg.date.getMilliseconds() + msg.name + msg.chat}>
+          <Typography display='inline'>[{formatTime(msg.date)}]</Typography>
+          <Typography display='inline'> <b>{msg.name}</b></Typography>
+          <Typography display='inline'>: {msg.message}</Typography>
+        </Container>);
+    }
   });
   let onEnterPressed = event => {
     event.preventDefault();
@@ -376,12 +385,13 @@ class Game extends React.Component {
         if (this.state.players.size === 1) {
           this.setState({ me: d['player'] });
         }
+        this.push_chat('all_chat', makeSystemMessage(d['player'] + ' connected.'));
       } break;
       case 'player_disconnected': {
         let new_players = new Set(this.state.players);
         new_players.delete(d['player']);
         this.setState({ players: new_players });
-        // on_player_disconnected(d['player']);
+        this.push_chat('all_chat', makeSystemMessage(d['player'] + ' disconnected.'));
       } break;
       case 'joined_team': {
         if (this.state.me === d['name']) {
@@ -399,6 +409,7 @@ class Game extends React.Component {
           console.log('ERROR: joined_team: invalid team: ' + d['team']);
           return;
         }
+        this.push_chat('all_chat', makeSystemMessage(d['player'] + ' joined team ' + d['team'].toUpperCase()));
       } break;
       case 'left_team': {
         if (d['team'] === 'a') {
@@ -409,14 +420,15 @@ class Game extends React.Component {
           let team = new Set(this.state.team_b);
           team.delete(d['name']);
           this.setState({ team_b: team });
-
         } else {
           console.log('ERROR: left_team: invalid team: ' + d['team']);
           return;
         }
+        this.push_chat('all_chat', makeSystemMessage(d['player'] + ' left team ' + d['team'].toUpperCase()));
       } break;
       case 'new_host': {
         this.setState({ host: d['player'] });
+        this.push_chat('all_chat', makeSystemMessage(d['player'] + ' is the new host'));
       } break;
       case 'words': {
         this.setState({ state: 'words' });
@@ -474,22 +486,10 @@ class Game extends React.Component {
         }
       } break;
       case 'team_chat': {
-        let chat = this.state.team_chat;
-        chat.push({date: new Date(), ...d});
-        this.setState({ team_chat: chat });
-        let e = document.getElementById('team_chat');
-        if (e.scrollTop >= e.scrollHeight - e.clientHeight - e.lastChild.clientHeight) {
-          e.scrollTop = e.scrollHeight;
-        }
+        this.push_chat('team_chat', d);
       } break;
       case 'all_chat': {
-        let chat = this.state.all_chat;
-        chat.push({date: new Date(), ...d});
-        this.setState({ all_chat: chat });
-        let e = document.getElementById('all_chat');
-        if (e.scrollTop >= e.scrollHeight - e.clientHeight - e.lastChild.clientHeight) {
-          e.scrollTop = e.scrollHeight;
-        }
+        this.push_chat('all_chat', d);
       } break;
       default: {
         console.log('Unhandled: ' + d);
@@ -599,6 +599,16 @@ class Game extends React.Component {
 
   send_chat(command, message) {
     this.send({command: command, message: message});
+  }
+
+  push_chat(type, c) {
+    let chat = this.state[type];
+    chat.push({date: new Date(), ...c});
+    this.setState({ [type]: chat });
+    let e = document.getElementById(type);
+    if (e && e.scrollTop >= e.scrollHeight - e.clientHeight - e.lastChild.clientHeight) {
+      e.scrollTop = e.scrollHeight;
+    }
   }
 
   getClueGiver() {
@@ -770,7 +780,7 @@ class Game extends React.Component {
         </Container>
         <Container className={classes.bottomBar}>
           <AppBar position="static">
-            <Tabs value={this.state.tab} onChange={this.handleTabChange.bind(this)}>
+            <Tabs value={this.state.tab} onChange={this.handleTabChange.bind(this)} scrollButtons="on" variant="scrollable">
               <Tab label="All Chat" index={0} />
               <Tab label="Team Chat" index={1} />
               <Tab label="Clue View" index={2} />
