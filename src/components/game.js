@@ -74,16 +74,20 @@ const styles = theme => ({
     padding: theme.spacing(1),
   },
   bottomBar: {
-    position: 'absolute',
+    position: 'static',
     overflow: 'none',
-    left: 0,
-    bottom: theme.spacing(15),
     height: theme.spacing(15),
+    backgroundColor: theme.palette.background.paper,
   },
   chatBox: {
     width: '100%',
     overflow: 'auto',
     height: theme.spacing(15),
+    backgroundColor: theme.palette.background.paper,
+  },
+  appBar: {
+    zIndex: 2,
+    elevation: 0,
   },
 });
 
@@ -238,7 +242,7 @@ function Round(props) {
   return (
     <ExpansionPanel expanded={props.expanded === props.round.number} onChange={props.handleExpansion(props.round.number)}>
       <ExpansionPanelSummary expandIcon={<ExpandMoreIcon />}>
-        <Typography color="textPrimary" variant="h3">Round {props.round.number + 1}</Typography>
+        <Typography color="textPrimary" variant="h6">Round {props.round.number + 1}</Typography>
       </ExpansionPanelSummary>
       <ExpansionPanelDetails>
         <Grid className={classes.card} spacing={2} container>
@@ -779,7 +783,7 @@ class Game extends React.Component {
           {rounds}
         </Container>
         <Container className={classes.bottomBar}>
-          <AppBar position="static">
+          <AppBar elevation={0} className={classes.appBar} position="static">
             <Tabs value={this.state.tab} onChange={this.handleTabChange.bind(this)} scrollButtons="on" variant="scrollable">
               <Tab label="All Chat" index={0} />
               <Tab label="Team Chat" index={1} />
