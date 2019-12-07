@@ -56,6 +56,7 @@ class Lobby extends React.Component {
       url = 'ws://' + document.domain + ':8080/lobby_ws';
     }
     let s = new WebSocket(url);
+    let self = this;
     s.onmessage = function (msg) {
       console.log('Got server response:')
       console.log(msg)
@@ -81,7 +82,7 @@ class Lobby extends React.Component {
         case 'error':
           {
             console.log('ERROR: ' + d['msg'])
-            this.props.enqueueSnackbar(d['msg'], {
+            self.props.enqueueSnackbar(d['msg'], {
               variant: 'error',
             });
           }
