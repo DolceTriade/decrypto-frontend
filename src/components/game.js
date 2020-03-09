@@ -591,9 +591,6 @@ class Game extends React.Component {
       this.error('Some ' + field + ' empty!');
       return;
     }
-    let state = {};
-    state[field] = [];
-    this.setState(state);
     this.send({
       'command': field,
       [field]: obj,
