@@ -51,9 +51,10 @@ class Lobby extends React.Component {
   }
 
   createSocket(props) {
-    let url = 'ws://' + document.domain + ':' + window.location.port + '/lobby_ws';
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+    let url = wsProtocol + document.domain + ':' + window.location.port + '/lobby_ws';
     if (process.env.NODE_ENV === 'development') {
-      url = 'ws://' + document.domain + ':8080/lobby_ws';
+      url = wsProtocol + document.domain + ':8080/lobby_ws';
     }
     let s = new WebSocket(url);
     let self = this;
