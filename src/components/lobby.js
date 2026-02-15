@@ -52,9 +52,9 @@ class Lobby extends React.Component {
 
   createSocket(props) {
     const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-    let url = wsProtocol + document.domain + ':' + window.location.port + '/lobby_ws';
+    let url = wsProtocol + window.location.hostname + ':' + window.location.port + '/lobby_ws';
     if (process.env.NODE_ENV === 'development') {
-      url = wsProtocol + document.domain + ':8080/lobby_ws';
+      url = wsProtocol + window.location.hostname + ':8080/lobby_ws';
     }
     let s = new WebSocket(url);
     let self = this;
@@ -81,17 +81,13 @@ class Lobby extends React.Component {
           }
           break
         case 'error':
-          {
-            console.log('ERROR: ' + d['msg'])
-            self.props.enqueueSnackbar(d['msg'], {
-              variant: 'error',
-            });
-          }
+          console.log('ERROR: ' + d['msg'])
+          self.props.enqueueSnackbar(d['msg'], {
+            variant: 'error',
+          });
           break
         default:
-          {
-            console.log('Unhandled command: ' + d)
-          }
+          console.log('Unhandled command: ' + d)
           break
       }
     }
@@ -151,7 +147,7 @@ class Lobby extends React.Component {
         </AppBar>
         <Dialog open={!this.state.connected}>
           <DialogContent>
-            <Grid container justify="center"><CircularProgress justify="center" disableShrink /></Grid>
+            <Grid container justifyContent="center"><CircularProgress disableShrink /></Grid>
             <Typography component="h2" align="center">Waiting for WebSocket connection...</Typography>
           </DialogContent>
           <DialogActions>

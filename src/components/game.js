@@ -97,7 +97,7 @@ let makeSystemMessage = msg => { return { system: true, name: '', message: msg }
 
 function TeamJoinButtons(props) {
   return (
-    <Grid container spacing={2} justify="center">
+    <Grid container spacing={2} justifyContent="center">
       <Grid item>
         <Button variant="contained" color="primary" onClick={props.team_a}>
           Team A
@@ -114,7 +114,7 @@ function TeamJoinButtons(props) {
 
 function TeamLeaveButton(props) {
   return (
-    <Grid container spacing={2} justify="center">
+    <Grid container spacing={2} justifyContent="center">
       <Grid item>
         <Button variant="contained" color="primary" onClick={props.onClick}>
           Leave Team
@@ -126,7 +126,7 @@ function TeamLeaveButton(props) {
 
 function GameStartButton(props) {
   return (
-    <Grid container spacing={2} justify="center">
+    <Grid container spacing={2} justifyContent="center">
       <Grid item>
         <Button variant="contained" color="primary" onClick={props.onClick}>
           Start
@@ -144,7 +144,7 @@ function Order(props) {
     );
   });
   return (
-    <Grid container spacing={1} justify="center">
+    <Grid container spacing={1} justifyContent="center">
       {nums}
     </Grid>
   );
@@ -157,7 +157,7 @@ function Round(props) {
   let actions = [];
   if (props.round['clue_giver'] === props.me && !('guesses' in props.round)) {
     if ('clues' in props.round) {
-      clues = <Grid container justify="center"><CircularProgress justify="center" disableShrink /></Grid>;
+      clues = <Grid container justifyContent="center"><CircularProgress disableShrink /></Grid>;
     } else {
       for (var i = 0; i < 3; ++i) {
         let key = 'clues' + i;
@@ -235,9 +235,9 @@ function Round(props) {
     props.round.spy_clues.forEach(function (clue, idx) {
       clues.push(<Grid item key={randomKey()}><Typography>{idx + 1}. {clue}</Typography></Grid>)
     });
-    clues = <Grid container direction="column" justify="center">{clues}</Grid>
+    clues = <Grid container direction="column" justifyContent="center">{clues}</Grid>
   } else {
-    clues = <Grid container justify="center"><CircularProgress justify="center" disableShrink /></Grid>;
+    clues = <Grid container justifyContent="center"><CircularProgress disableShrink /></Grid>;
   }
   return (
     <ExpansionPanel expanded={props.expanded === props.round.number} onChange={props.handleExpansion(props.round.number)}>
@@ -295,6 +295,9 @@ function Chat(props) {
 function ClueView(props) {
   let contents = [];
   for (var i = 0; i < props.clues.length; ++i) {
+    if (!Array.isArray(props.clues[i])) {
+      continue;
+    }
     let inner = [];
     for (var j = 1; j < props.clues[i].length; ++j) {
       inner.push(
@@ -325,11 +328,8 @@ function ClueView(props) {
 }
 
 function TabPanel(props) {
-  return (
-    <Container hidden={props.value !== props.index}>
-      {props.children}
-    </Container>
-  );
+  if (props.value !== props.index) return null;
+  return <Container>{props.children}</Container>;
 }
 
 class Game extends React.Component {
@@ -378,10 +378,10 @@ class Game extends React.Component {
     }
 
     switch (d['command']) {
-      case 'error': {
+      case 'error':
         console.log('ERROR: ' + d['msg']);
         this.error(d['msg']);
-      } break;
+      break;
       case 'player_connected': {
         let new_players = new Set(this.state.players);
         new_players.add(d['player']);
@@ -397,7 +397,7 @@ class Game extends React.Component {
         this.setState({ players: new_players });
         this.push_chat('all_chat', makeSystemMessage(d['player'] + ' disconnected.'));
       } break;
-      case 'joined_team': {
+      case 'joined_team':
         if (this.state.me === d['name']) {
           this.setState({ message: 'Waiting for game to start...' });
         }
@@ -414,8 +414,8 @@ class Game extends React.Component {
           return;
         }
         this.push_chat('all_chat', makeSystemMessage(d['name'] + ' joined team ' + d['team'].toUpperCase()));
-      } break;
-      case 'left_team': {
+      break;
+      case 'left_team':
         if (d['team'] === 'a') {
           let team = new Set(this.state.team_a);
           team.delete(d['name']);
@@ -429,15 +429,15 @@ class Game extends React.Component {
           return;
         }
         this.push_chat('all_chat', makeSystemMessage(d['name'] + ' left team ' + d['team'].toUpperCase()));
-      } break;
-      case 'new_host': {
+      break;
+      case 'new_host':
         this.setState({ host: d['player'] });
         this.push_chat('all_chat', makeSystemMessage(d['player'] + ' is the new host'));
-      } break;
-      case 'words': {
+      break;
+      case 'words':
         this.setState({ state: 'words' });
         this.setState({ words: d['words'].slice(0) });
-      } break;
+      break;
       case 'round': {
         let rounds = this.state.rounds.slice(0);
         rounds[d['number']] = { ...rounds[d['number']], ...d };
@@ -480,7 +480,7 @@ class Game extends React.Component {
         rounds[d['number']]['order'] = d['order'];
         this.setState({ rounds: rounds, message: 'Please give clues that match the order' });
       } break;
-      case 'score': {
+      case 'score':
         if ('winner' in d) {
           this.setState({ score: d, message: d['winner'] + ' wins the game! The words are: Team A: ' + d.words.team_a + ' Team B:' + d.words.team_b });
         } else if ('tie' in d) {
@@ -488,24 +488,24 @@ class Game extends React.Component {
         } else {
           this.setState({ score: d });
         }
-      } break;
-      case 'team_chat': {
+      break;
+      case 'team_chat':
         this.push_chat('team_chat', d);
-      } break;
-      case 'all_chat': {
+      break;
+      case 'all_chat':
         this.push_chat('all_chat', d);
-      } break;
-      default: {
+      break;
+      default:
         console.log('Unhandled: ' + d);
-      } break;
+      break;
     }
   }
 
   createSocket(props) {
     const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-    let url = wsProtocol + document.domain + ':' + window.location.port + window.location.pathname + '/ws';
+    let url = wsProtocol + window.location.hostname + ':' + window.location.port + window.location.pathname + '/ws';
     if (process.env.NODE_ENV === 'development') {
-      url = wsProtocol + document.domain + ':8080' + window.location.pathname + '/ws';
+      url = wsProtocol + window.location.hostname + ':8080' + window.location.pathname + '/ws';
     }
     let s = new WebSocket(url);
 
@@ -705,7 +705,7 @@ class Game extends React.Component {
     if (this.state.score) {
       score = (
         <Container>
-          <Grid container justify="center" spacing={1}>
+          <Grid container justifyContent="center" spacing={1}>
             <Grid item>
               <Paper className={classes.padding}>
                 <Typography variant="h6">Team A</Typography>
@@ -750,7 +750,7 @@ class Game extends React.Component {
         </Drawer>
         <Dialog open={!this.state.connected}>
           <DialogContent>
-            <Grid container justify="center"><CircularProgress justify="center" disableShrink /></Grid>
+            <Grid container justifyContent="center"><CircularProgress disableShrink /></Grid>
             <Typography component="h2" align="center">Waiting for WebSocket connection...</Typography>
           </DialogContent>
           <DialogActions>
@@ -772,7 +772,7 @@ class Game extends React.Component {
             {buttons}
           </Container>
           <Container className={classes.icon}>
-            <Grid container spacing={2} justify="center">
+            <Grid container spacing={2} justifyContent="center">
               {words}
             </Grid>
           </Container>
